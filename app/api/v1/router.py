@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, emails, calendar, sync, health, agent, voice, calls
+from app.api.v1.endpoints import auth, emails, calendar, sync, health, agent, voice, calls, metrics
 
 api_router = APIRouter()
 
@@ -11,3 +11,4 @@ api_router.include_router(sync.router, prefix="/sync", tags=["Data Ingestion & S
 api_router.include_router(agent.router, prefix="/agent", tags=["Multi-Agent Reasoning"])
 api_router.include_router(voice.router, prefix="/voice", tags=["Voice Engine"])
 api_router.include_router(calls.router, prefix="/calls", tags=["Call Management"])
+api_router.include_router(metrics.router, prefix="/metrics", tags=["Observability & Metrics"])
