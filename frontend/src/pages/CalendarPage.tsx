@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar as CalIcon, Clock, MapPin } from 'lucide-react';
+import { Clock, MapPin } from 'lucide-react';
 import { api } from '../services/api';
 import { CalendarEvent } from '../types';
 

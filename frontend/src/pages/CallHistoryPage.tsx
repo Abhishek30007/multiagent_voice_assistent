@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Phone, Clock, FileText, CheckCircle2 } from 'lucide-react';
+import { Phone } from 'lucide-react';
 import { api } from '../services/api';
 import { CallLog } from '../types';
 

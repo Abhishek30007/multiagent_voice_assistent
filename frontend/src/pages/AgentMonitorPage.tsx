@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Cpu, Zap, ShieldAlert, CheckCircle, Activity, DollarSign } from 'lucide-react';
 import { api } from '../services/api';
 import { MetricsSummary } from '../types';
 

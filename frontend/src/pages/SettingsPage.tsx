@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, Key, RefreshCw, Trash2, Power } from 'lucide-react';
+import { RefreshCw, Power } from 'lucide-react';
 import { api } from '../services/api';
 import { AuthStatus } from '../types';
 

@@ -1,17 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Mail, Calendar, PhoneCall, CheckCircle, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { api } from '../services/api';
 import { AuthStatus, SyncStatus } from '../types';
 
 export const OverviewPage: React.FC = () => {
   const [auth, setAuth] = useState<AuthStatus | null>(null);
-  const [sync, setSync] = useState<SyncStatus | null>(null);
+  const [, setSync] = useState<SyncStatus | null>(null);
   const [emailCount, setEmailCount] = useState<number>(0);
   const [eventCount, setEventCount] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
 
   const loadData = async () => {
-    setLoading(true);
     try {
       const [authData, syncData, emails, events] = await Promise.all([
         api.getAuthStatus(),
@@ -25,8 +23,6 @@ export const OverviewPage: React.FC = () => {
       setEventCount(events.total);
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
     }
   };
 

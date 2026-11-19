@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mic, Send, PhoneOff } from 'lucide-react';
+import { X, Send, PhoneOff } from 'lucide-react';
 import { api } from '../services/api';
 
 interface VoiceTesterModalProps {

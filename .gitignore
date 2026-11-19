@@ -26,6 +26,12 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/package-lock.json
+
 # Virtual environments
 .env
 .venv

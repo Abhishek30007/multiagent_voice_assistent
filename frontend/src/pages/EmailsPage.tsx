@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, Mail, Tag } from 'lucide-react';
 import { api } from '../services/api';
 import { EmailMessage } from '../types';
 
