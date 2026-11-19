@@ -100,3 +100,57 @@ async def end_call_session(call_id: str = Query(...), db: AsyncSession = Depends
         success=True,
         message=f"Call {call_id} successfully terminated and saved in history.",
     )
+
+
+from fastapi.responses import Response
+from fastapi import Request
+from app.voice.adapters.twilio_adapter import TwilioVoiceAdapter
+from app.agent.graph import personal_ai_graph
+
+
+@router.post("/twilio/incoming", summary="Twilio Incoming Telephone Call Webhook")
+async def twilio_incoming_call(request: Request):
+    """Twilio Webhook: Initial incoming phone call connection."""
+    form = await request.form()
+    caller = form.get("From", "Unknown")
+    logger.info(f"Incoming Twilio phone call from {caller}")
+
+    greeting = "Hello, I am Abhishek's AI assistant. He is currently unavailable."
+    twiml = TwilioVoiceAdapter.generate_twiml_greeting(greeting)
+    return Response(content=twiml, media_type="application/xml")
+
+
+@router.post("/twilio/process_speech", summary="Twilio Speech Processing Turn")
+async def twilio_process_speech(request: Request, db: AsyncSession = Depends(get_db)):
+    """Twilio Webhook: Receives transcribed caller speech and returns AI answer in TwiML."""
+    form = await request.form()
+    speech_result = form.get("SpeechResult", "")
+    caller = form.get("From", "Unknown Caller")
+    call_sid = form.get("CallSid", "tw_call")
+
+    user = await get_or_create_owner_user(db)
+    agent_input = {
+        "query": speech_result,
+        "caller_phone": str(caller),
+        "call_id": str(call_sid),
+        "chat_history": [],
+        "route": None,
+        "needs_calendar": False,
+        "needs_gmail": False,
+        "retrieved_evidence": [],
+        "evidence_valid": False,
+        "evidence_summary": None,
+        "is_safe": True,
+        "safety_violations": [],
+        "is_injection_attempt": False,
+        "response_text": "",
+        "sources_used": [],
+        "audit_trail": [],
+    }
+
+    config = {"configurable": {"db_session": db, "user_id": user.id}}
+    agent_result = await personal_ai_graph.ainvoke(agent_input, config=config)
+    reply_text = agent_result.get("response_text", "I can take a message for Abhishek.")
+
+    twiml = TwilioVoiceAdapter.generate_twiml_response(reply_text)
+    return Response(content=twiml, media_type="application/xml")

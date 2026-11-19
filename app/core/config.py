@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     LIVEKIT_API_SECRET: str = ""
     LIVEKIT_URL: str = "wss://livekit.example.com"
 
+    # Twilio Telephony Credentials
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    OWNER_PHONE: str = ""
+
     # Google OAuth Scopes (Read-only for privacy & security)
     GOOGLE_SCOPES: List[str] = [
         "https://www.googleapis.com/auth/gmail.readonly",
