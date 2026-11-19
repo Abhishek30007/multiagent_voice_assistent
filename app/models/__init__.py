@@ -4,6 +4,7 @@ from app.models.token import OAuthToken
 from app.models.email import EmailMessage
 from app.models.calendar import CalendarEvent
 from app.models.sync_state import SyncState
+from app.models.call_log import CallLog
 
 __all__ = [
     "Base",
@@ -13,4 +14,5 @@ __all__ = [
     "EmailMessage",
     "CalendarEvent",
     "SyncState",
+    "CallLog",
 ]
