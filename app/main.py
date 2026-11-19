@@ -52,6 +52,10 @@ app.add_middleware(
 # Mount API v1 router
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+# Also expose direct root-level /auth/google/callback for Google OAuth redirect
+from app.api.v1.endpoints.auth import google_auth_callback
+app.get("/auth/google/callback", tags=["Google OAuth"])(google_auth_callback)
+
 
 @app.get("/", tags=["Root"])
 async def root():

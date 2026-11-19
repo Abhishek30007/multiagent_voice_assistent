@@ -1,7 +1,45 @@
 import os
 from typing import Dict, Any
 from app.agent.state import AgentState
+from app.core.config import get_settings
 from app.core.logger import logger
+
+settings = get_settings()
+
+
+def generate_gemini_voice_response(query: str, evidence_summary: str, api_key: str) -> str:
+    """Use Gemini 2.5 Flash to synthesize natural grounded spoken response."""
+    try:
+        from google import genai
+        client = genai.Client(api_key=api_key)
+
+        prompt = f"""You are Abhishek's AI telephone assistant. A caller is speaking to you.
+He is currently unavailable.
+Your role: Answer the caller politely, naturally, and concisely (1-2 short spoken sentences).
+
+CRITICAL GROUNDING RULES:
+1. ONLY state facts that are explicitly provided in the verified evidence below.
+2. NEVER invent or assume any personal details, dates, or commitments.
+3. If the evidence does not answer the question, say: "I don't have verified information about that in Abhishek's schedule or messages. I can take a message for him."
+4. Do not pretend to be Abhishek. Always maintain the AI assistant persona.
+
+VERIFIED EVIDENCE:
+{evidence_summary}
+
+CALLER QUESTION:
+"{query}"
+
+CONCISE SPOKEN RESPONSE:"""
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+        )
+        if response and response.text:
+            return response.text.strip()
+    except Exception as e:
+        logger.warning(f"Gemini API call failed, falling back to deterministic response: {e}")
+    return ""
 
 
 def response_agent_node(state: AgentState) -> Dict[str, Any]:
@@ -44,12 +82,21 @@ def response_agent_node(state: AgentState) -> Dict[str, Any]:
             "audit_trail": audit_trail,
         }
 
-    # 4. Synthesizing Grounded Voice Answer
-    # We inspect evidence items directly to craft a clear, conversational answer
+    # 4. Try Gemini LLM Generation if API key is present
+    gemini_key = os.getenv("GEMINI_API_KEY") or settings.GEMINI_API_KEY
+    if gemini_key and not gemini_key.startswith("your-"):
+        llm_response = generate_gemini_voice_response(query, evidence_summary, gemini_key)
+        if llm_response:
+            audit_trail.append("Response Agent: Grounded response synthesized via Gemini LLM.")
+            return {
+                "response_text": llm_response,
+                "audit_trail": audit_trail,
+            }
+
+    # 5. Deterministic Grounded Template Fallback
     calendar_items = [e for e in state.get("retrieved_evidence", []) if e.get("source_type") == "calendar"]
     email_items = [e for e in state.get("retrieved_evidence", []) if e.get("source_type") == "email"]
 
-    # Availability / schedule question
     if any(kw in query_lower for kw in ["available", "free", "busy", "schedule", "tomorrow", "assessment scheduled"]):
         if calendar_items:
             first_evt = calendar_items[0]

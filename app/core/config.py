@@ -39,7 +39,15 @@ class Settings(BaseSettings):
     # Google OAuth 2.0 Credentials
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/google/callback"
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
+
+    # AI & Voice API Keys
+    GEMINI_API_KEY: str = ""
+    DEEPGRAM_API_KEY: str = ""
+    CARTESIA_API_KEY: str = ""
+    LIVEKIT_API_KEY: str = ""
+    LIVEKIT_API_SECRET: str = ""
+    LIVEKIT_URL: str = "wss://livekit.example.com"
 
     # Google OAuth Scopes (Read-only for privacy & security)
     GOOGLE_SCOPES: List[str] = [
