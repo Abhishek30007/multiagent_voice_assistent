@@ -60,6 +60,10 @@ def response_agent_node(state: AgentState) -> Dict[str, Any]:
             response_text = f"According to his emails regarding '{first_mail.get('subject')}', there is a scheduled assessment."
         else:
             response_text = "According to his calendar, Abhishek appears to be free during that time."
+    elif calendar_items:
+        first_evt = calendar_items[0]
+        summary = first_evt.get("summary", "an event")
+        response_text = f"According to his calendar, Abhishek has '{summary}' scheduled."
     elif email_items:
         first_mail = email_items[0]
         subj = first_mail.get("subject", "an email")

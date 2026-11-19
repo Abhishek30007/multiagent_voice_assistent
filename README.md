@@ -1,159 +1,167 @@
-# Personal AI Twin – Phase 1: Real-Time Data Ingestion Engine
+# Personal AI Twin – Real-Time AI Phone Representative
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg)](https://fastapi.tiangolo.com)
+[![LangGraph](https://img.shields.io/badge/LangGraph-0.2%2B-FF6F00.svg)](https://langchain-ai.github.io/langgraph/)
+[![LiveKit](https://img.shields.io/badge/LiveKit-Voice%20Agents-0052CC.svg)](https://livekit.io/)
+[![Deepgram](https://img.shields.io/badge/Deepgram-STT-13EF95.svg)](https://deepgram.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D.svg)](https://redis.io/)
-[![Celery](https://img.shields.io/badge/Celery-5.3%2B-37814A.svg)](https://docs.celeryq.dev/)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev/)
 
-Phase 1 implementation of Abhishek's **Personal AI Twin**. This phase establishes the core foundational infrastructure: **Google OAuth 2.0 authorization, Gmail & Google Calendar data ingestion, PostgreSQL relational storage, Redis distributed locking/caching, Celery background sync workers, and FastAPI REST endpoints**.
+An autonomous personal AI telephone representative for **Abhishek**. When someone calls Abhishek's dedicated AI phone number, the assistant receives the incoming call, introduces itself as an AI assistant, transcribes the caller's speech in real-time, queries an integrated LangGraph multi-agent system grounded strictly in Abhishek's connected Gmail and primary Google Calendar records, and replies with natural speech.
 
 ---
 
-## Architecture Overview
+## 1. System Architecture
 
 ```
-                          ┌───────────────────────────┐
-                          │   Google Cloud APIs       │
-                          │   - Gmail API (v1)        │
-                          │   - Google Calendar (v3)  │
-                          └─────────────┬─────────────┘
-                                        │ OAuth 2.0 Tokens
-                                        ▼ (Fernet Encrypted)
-┌───────────────────────────────────────────────────────────────────────────┐
-│                               FASTAPI BACKEND                             │
-│                                                                           │
-│   ┌────────────────────┐   ┌─────────────────────┐   ┌────────────────┐   │
-│   │   Auth & Security  │   │  Ingestion Pipeline │   │  API Endpoints │   │
-│   │   - OAuth Flow     │   │  - Email Ingestion  │   │  - /auth       │   │
-│   │   - Token Crypto   │   │  - Calendar Ingest  │   │  - /emails     │   │
-│   │   - Fernet 256-bit │   │  - Auto-Categorizer │   │  - /calendar   │   │
-│   └────────────────────┘   └──────────┬──────────┘   │  - /sync       │   │
-│                                       │              │  - /health     │   │
-│                                       │              └────────────────┘   │
-└───────────────────────────────────────┼───────────────────────────────────┘
-                                        │
-           ┌────────────────────────────┴───────────────────────────┐
-           ▼                                                        ▼
-┌───────────────────────────┐                            ┌──────────────────────────┐
-│   PostgreSQL 16           │                            │   Redis 7                │
-│   - users                 │                            │   - Distributed Sync Lock│
-│   - oauth_tokens (crypt)  │                            │   - Celery Message Broker│
-│   - email_messages        │                            │   - Fast Cache           │
-│   - calendar_events       │                            └──────────┬───────────────┘
-│   - sync_states           │                                       │
-└───────────────────────────┘                                       ▼
-                                                         ┌──────────────────────────┐
-                                                         │   Celery Background      │
-                                                         │   - Worker (Data Sync)   │
-                                                         │   - Beat (15m Scheduler) │
-                                                         └──────────────────────────┘
+Incoming Telephone Call
+        │
+        ▼
+Telephony Provider (Twilio / Telnyx / Carrier)
+        │
+        ▼
+LiveKit SIP Trunking
+        │
+        ▼
+LiveKit Voice Session Manager
+        │
+        ▼
+Deepgram Speech-to-Text Adapter
+        │
+        ▼
+LangGraph Multi-Agent Engine
+ ├── Supervisor Agent (Intent classification & prompt injection filter)
+ ├── Gmail Retrieval Agent (Grounded email record extraction)
+ ├── Calendar Agent (Schedule conflict & free/busy solver)
+ ├── Evidence Validation Agent (Anti-hallucination verification)
+ ├── Safety & Policy Agent (Privacy disclosure rules & write-action blocker)
+ └── Response Generation Agent (Voice-optimized persona formulator)
+        │
+        ▼
+Cartesia / ElevenLabs Text-to-Speech Adapter
+        │
+        ▼
+Caller Hears Grounded AI Response
 ```
 
 ---
 
-## Features Implemented in Phase 1
+## 2. Completed Features
 
-1. **Google OAuth 2.0 Integration**:
-   - Secure authorization URL generation (`offline` access type for refresh tokens).
-   - Exchange authorization codes for access and refresh tokens.
-   - Automatic token refresh upon expiration.
-   - Token revocation on disconnect.
+### Phase 1: Data Ingestion & Storage
+- **Google OAuth 2.0**: Secure read-only authorization flow with 256-bit Fernet encryption of stored tokens.
+- **Gmail Ingestion**: MIME parsing, text & HTML extraction, category classification, and incremental history sync.
+- **Google Calendar Ingestion**: SyncToken-based incremental updates, timezone normalization to UTC, free/busy querying.
+- **PostgreSQL 16 & Redis 7**: Strict relational schemas for users, encrypted tokens, emails, calendar events, and call logs with distributed concurrency locking.
+- **Celery Workers & Beat**: Automated background synchronization every 15 minutes.
 
-2. **Security & Privacy by Design**:
-   - Only **read-only** Google scopes requested (`gmail.readonly`, `calendar.readonly`).
-   - Symmetrically encrypted token storage at rest using **Fernet (AES-128-CBC with SHA256 HMAC)**.
-   - Plain credentials never logged or exposed in API responses.
+### Phase 2: LangGraph Multi-Agent Architecture
+- **Supervisor Agent**: Classifies caller intent, detects adversarial jailbreaks, and orchestrates specialized retrieval agents.
+- **Gmail & Calendar Retrieval Agents**: Extracts personal facts directly from PostgreSQL.
+- **Evidence Validation Agent**: Enforces strict grounding against stored records. Abstains on unverified queries (*"I don't have verified information about that. I can take a message for him."*).
+- **Safety & Policy Agent**: Filters out credentials, bank details, and OTPs. Prohibits making commitments or modifying events.
+- **Response Agent**: Formulates concise, natural, polite spoken answers without impersonating Abhishek.
 
-3. **Gmail Ingestion Engine**:
-   - Full message retrieval with recursive MIME multipart traversal.
-   - Text extraction, HTML stripping, sender, recipient, and date parsing into UTC.
-   - Built-in categorization (`Assessment`, `Interview`, `Career`, `Finance`, `Security`, `Meeting`, `General`).
-   - Incremental synchronization powered by Gmail `historyId`.
-   - Idempotent upserts ensuring no duplicate emails in the database.
-
-4. **Google Calendar Ingestion Engine**:
-   - Ingestion of primary calendar events with recurrence expansion.
-   - Conversion of all event times to standardized UTC.
-   - Detection and parsing of all-day vs timed events, attendees, and meeting links.
-   - Incremental synchronization using Google Calendar `syncToken` with automatic 410-Gone fallback.
-   - Real-time availability conflict checker (`/api/v1/calendar/availability`).
-
-5. **PostgreSQL & Alembic**:
-   - Strict relational schema for `users`, `oauth_tokens`, `email_messages`, `calendar_events`, and `sync_states`.
-   - Indexed queries for rapid search by sender, received date, event start/end, and category.
-   - Production-ready Alembic migration versions.
-
-6. **Redis Distributed Locking & Celery**:
-   - Redis distributed lock (`DistributedSyncLock`) preventing duplicate concurrent sync runs.
-   - In-memory lock fallback when Redis is offline.
-   - Celery background workers and Celery Beat scheduler for automated incremental sync every 15 minutes.
-
-7. **FastAPI REST API**:
-   - Full interactive Swagger documentation at `/docs` and ReDoc at `/redoc`.
-   - Health readiness checks at `/api/v1/health`.
+### Phase 3: Voice Calling, Observability & Dashboard
+- **LiveKit Agents & SIP Telephony**: Full telephone trunking, session isolation per call, interruption handling, and browser-based WebRTC testing.
+- **Provider Adapters**: Pluggable interfaces for STT (Deepgram), TTS (Cartesia / ElevenLabs), and Telephony (LiveKit SIP).
+- **OpenTelemetry & Metrics**: Tracks call latency, STT latency, agent execution time, time-to-first-spoken-response, and token costs.
+- **React + TypeScript Dashboard**:
+  - **Overview**: Real-time sync status, email/calendar counts, and voice representative health.
+  - **Emails**: Filterable by category (`Assessment`, `Interview`, `Career`, etc.) with keyword search.
+  - **Calendar**: Today's and upcoming events with location and timing details.
+  - **Call History**: Call logs with duration, turn count, execution summary, and source references.
+  - **Agent Monitor**: Live latency breakdown, token consumption, and error rates.
+  - **Settings**: Google account connection, phone trunk settings, and privacy controls.
+  - **Interactive Voice Tester**: In-browser simulator to test telephone calls immediately.
 
 ---
 
-## Directory Structure
+## 3. Directory Structure
 
 ```
 multiagent_voice_assistent/
-├── .env.example              # Environment variables template
-├── .gitignore                # Git ignore rules
-├── Dockerfile                # Multi-stage container definition
-├── docker-compose.yml        # Orchestration (DB, Redis, Backend, Celery)
-├── requirements.txt          # Python dependencies
-├── alembic.ini               # Alembic configuration
+├── .env.example
+├── .gitignore
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── pytest.ini
+├── README.md
+├── alembic.ini
 ├── alembic/
 │   ├── env.py
-│   ├── script.py.mako
 │   └── versions/
 │       └── 001_initial_phase1_schema.py
 ├── app/
-│   ├── __init__.py
-│   ├── main.py               # Application entrypoint & lifespan
+│   ├── main.py
 │   ├── core/
-│   │   ├── config.py         # Pydantic BaseSettings
-│   │   ├── database.py       # Async & Sync SQLAlchemy sessions
-│   │   ├── logger.py         # Structured logging configuration
-│   │   ├── redis_client.py   # Redis connection & distributed lock
-│   │   └── security.py       # Fernet encryption for OAuth tokens
+│   │   ├── config.py
+│   │   ├── database.py
+│   │   ├── logger.py
+│   │   ├── redis_client.py
+│   │   ├── security.py
+│   │   └── telemetry.py
 │   ├── models/
 │   │   ├── base.py
 │   │   ├── user.py
 │   │   ├── token.py
 │   │   ├── email.py
 │   │   ├── calendar.py
-│   │   └── sync_state.py
-│   ├── schemas/
-│   │   ├── common.py
-│   │   ├── auth.py
-│   │   ├── email.py
-│   │   ├── calendar.py
-│   │   └── sync.py
-│   ├── services/
-│   │   ├── google/
-│   │   │   ├── oauth.py
-│   │   │   ├── gmail_service.py
-│   │   │   └── calendar_service.py
-│   │   └── ingestion/
-│   │       ├── email_ingester.py
-│   │       ├── calendar_ingester.py
-│   │       └── sync_manager.py
-│   ├── api/
-│   │   └── v1/
-│   │       ├── router.py
-│   │       └── endpoints/
-│   │           ├── auth.py
-│   │           ├── emails.py
-│   │           ├── calendar.py
-│   │           ├── sync.py
-│   │           └── health.py
-│   └── workers/
-│       ├── celery_app.py
-│       └── tasks.py
+│   │   ├── sync_state.py
+│   │   └── call_log.py
+│   ├── agent/
+│   │   ├── graph.py
+│   │   ├── state.py
+│   │   ├── nodes/
+│   │   │   ├── supervisor.py
+│   │   │   ├── gmail_agent.py
+│   │   │   ├── calendar_agent.py
+│   │   │   ├── evidence_validator.py
+│   │   │   ├── safety_agent.py
+│   │   │   └── response_agent.py
+│   │   └── tools/
+│   │       └── retrieval_tools.py
+│   ├── voice/
+│   │   ├── adapters/
+│   │   │   ├── base.py
+│   │   │   ├── deepgram_stt.py
+│   │   │   ├── cartesia_tts.py
+│   │   │   └── sip_telephony.py
+│   │   └── session/
+│   │       └── call_session.py
+│   └── api/
+│       └── v1/
+│           ├── router.py
+│           └── endpoints/
+│               ├── auth.py
+│               ├── emails.py
+│               ├── calendar.py
+│               ├── sync.py
+│               ├── agent.py
+│               ├── voice.py
+│               ├── calls.py
+│               ├── metrics.py
+│               └── health.py
+├── frontend/
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── src/
+│       ├── App.tsx
+│       ├── pages/
+│       │   ├── OverviewPage.tsx
+│       │   ├── EmailsPage.tsx
+│       │   ├── CalendarPage.tsx
+│       │   ├── CallHistoryPage.tsx
+│       │   ├── AgentMonitorPage.tsx
+│       │   └── SettingsPage.tsx
+│       └── components/
+│           └── VoiceTesterModal.tsx
+├── docs/
+│   ├── ARCHITECTURE.md
+│   └── GCP_DEPLOYMENT.md
 └── tests/
     ├── conftest.py
     ├── test_crypto.py
@@ -161,97 +169,74 @@ multiagent_voice_assistent/
     ├── test_calendar_ingestion.py
     ├── test_auth.py
     ├── test_api_endpoints.py
-    └── test_sync_manager.py
+    ├── test_sync_manager.py
+    ├── test_phase2_agents.py
+    ├── test_phase3_voice.py
+    ├── test_phase3_telemetry.py
+    └── test_e2e_scenarios.py
 ```
 
 ---
 
-## Getting Started
+## 4. How to Run the Application
 
-### 1. Prerequisites
-- Python 3.11+
-- (Optional for containerized run) Docker and Docker Compose
+### Option A: Local Development
 
-### 2. Configure Google Cloud Console
-1. Visit the [Google Cloud Console](https://console.cloud.google.com/).
-2. Create a project named `Personal-AI-Twin`.
-3. Enable **Gmail API** and **Google Calendar API**.
-4. In **OAuth consent screen**:
-   - User Type: **External**
-   - Scopes:
-     - `https://www.googleapis.com/auth/gmail.readonly`
-     - `https://www.googleapis.com/auth/calendar.readonly`
-     - `https://www.googleapis.com/auth/userinfo.email`
-     - `https://www.googleapis.com/auth/userinfo.profile`
-   - Add your Gmail (`abhishekkumarsaw414@gmail.com`) as a Test User.
-5. In **Credentials**:
-   - Create **OAuth 2.0 Client ID** -> **Web application**.
-   - Authorized redirect URIs: `http://localhost:8000/api/v1/auth/google/callback`.
-   - Copy Client ID and Client Secret.
+1. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   cd frontend && npm install && cd ..
+   ```
 
-### 3. Local Setup
+2. **Configure environment**:
+   ```bash
+   cp .env.example .env
+   ```
 
-Copy the environment file:
-```bash
-cp .env.example .env
-```
+3. **Run database migrations**:
+   ```bash
+   alembic upgrade head
+   ```
 
-Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+4. **Start the FastAPI backend**:
+   ```bash
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
 
-Run Alembic migrations:
-```bash
-alembic upgrade head
-```
-
-Run the FastAPI application:
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Interactive API documentation will be available at:
-- Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
-- ReDoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+5. **Start the React frontend**:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) to view the dashboard.
 
 ---
 
-### 4. Running with Docker Compose
+### Option B: Docker Compose (Full Stack)
 
-To start PostgreSQL, Redis, FastAPI, Celery Worker, and Celery Beat in one command:
+Run the entire stack (PostgreSQL, Redis, FastAPI Backend, Celery Worker, Celery Beat, and React Frontend) with one command:
+
 ```bash
 docker-compose up --build
 ```
 
----
-
-## API Endpoints Reference
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/v1/health` | Health and readiness check |
-| `GET` | `/api/v1/auth/google/url` | Generate Google OAuth consent URL |
-| `GET` | `/api/v1/auth/google/callback` | OAuth callback handler |
-| `GET` | `/api/v1/auth/google/status` | Connection status for Gmail & Calendar |
-| `POST` | `/api/v1/auth/google/disconnect` | Revoke and delete credentials |
-| `GET` | `/api/v1/emails` | Paginated emails with filtering & search |
-| `GET` | `/api/v1/emails/{id}` | Detailed email view |
-| `GET` | `/api/v1/emails/stats/summary` | Email count breakdown by category |
-| `GET` | `/api/v1/calendar/events` | List events within date window |
-| `GET` | `/api/v1/calendar/events/{id}` | Detailed calendar event view |
-| `GET` | `/api/v1/calendar/availability` | Free/busy conflict detection |
-| `POST` | `/api/v1/sync/all` | Trigger full ingestion sync |
-| `POST` | `/api/v1/sync/gmail` | Trigger Gmail ingestion sync |
-| `POST` | `/api/v1/sync/calendar` | Trigger Calendar ingestion sync |
-| `GET` | `/api/v1/sync/status` | Ingestion status and item counts |
+- Dashboard: [http://localhost:3000](http://localhost:3000)
+- Backend Swagger API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
-## Running the Test Suite
+## 5. Running the Complete Test Suite
 
-The test suite runs with in-memory SQLite and mocks, requiring no running database or external network access:
+The repository contains **47 automated tests** covering unit, integration, and all 16 required end-to-end telephone call scenarios:
 
 ```bash
-pytest -v
+python -m pytest -v
 ```
+
+All 47 tests execute against isolated SQLite in-memory databases and mocked provider adapters, requiring zero external network calls.
+
+---
+
+## 6. Connecting a Real Phone Number
+
+See [docs/GCP_DEPLOYMENT.md](docs/GCP_DEPLOYMENT.md) for full instructions on configuring a Twilio/Telnyx SIP trunk connected to LiveKit Agents for production PSTN telephone calls.

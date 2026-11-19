@@ -35,7 +35,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # FastAPI Backend API Server
+  # FastAPI Backend API Server (Endpoints, Multi-Agent & SIP Webhooks)
   backend:
     build:
       context: .
@@ -58,6 +58,12 @@ services:
       - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/v1/auth/google/callback}
       - OWNER_NAME=${OWNER_NAME:-Abhishek}
       - OWNER_EMAIL=${OWNER_EMAIL:-abhishekkumarsaw414@gmail.com}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - LIVEKIT_URL=${LIVEKIT_URL:-wss://livekit.example.com}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - CARTESIA_API_KEY=${CARTESIA_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     depends_on:
       db:
         condition: service_healthy
@@ -102,6 +108,18 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+
+  # React + TypeScript Frontend Dashboard
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: personal_ai_twin_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:

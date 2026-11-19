@@ -12,11 +12,16 @@ def parse_time_window_from_query(query: str) -> Tuple[Optional[datetime.datetime
     now = datetime.datetime.now(datetime.timezone.utc)
     query_lower = query.lower()
 
+    has_date_keyword = False
     target_date = now.date()
     if "tomorrow" in query_lower:
         target_date = target_date + datetime.timedelta(days=1)
+        has_date_keyword = True
     elif "yesterday" in query_lower:
         target_date = target_date - datetime.timedelta(days=1)
+        has_date_keyword = True
+    elif "today" in query_lower:
+        has_date_keyword = True
 
     # Check for specific hour mention like "4 pm", "16:00", "4:00 pm"
     hour_match = re.search(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", query_lower)
@@ -37,10 +42,14 @@ def parse_time_window_from_query(query: str) -> Tuple[Optional[datetime.datetime
         # Search window from 1 hour before to 1 hour after
         return target_dt - datetime.timedelta(hours=1), target_dt + datetime.timedelta(hours=2)
 
-    # Otherwise search the entire target day
-    start_dt = datetime.datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=datetime.timezone.utc)
-    end_dt = datetime.datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, tzinfo=datetime.timezone.utc)
-    return start_dt, end_dt
+    if has_date_keyword:
+        # Search the entire target day
+        start_dt = datetime.datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0, tzinfo=datetime.timezone.utc)
+        end_dt = datetime.datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59, tzinfo=datetime.timezone.utc)
+        return start_dt, end_dt
+
+    # If no specific day is mentioned (e.g. "When is his interview?"), search forward 90 days
+    return now - datetime.timedelta(days=1), now + datetime.timedelta(days=90)
 
 
 async def calendar_agent_node(state: AgentState, config: RunnableConfig) -> Dict[str, Any]:
