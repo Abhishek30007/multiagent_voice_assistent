@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 16 Relational Store
+  db:
+    image: postgres:16-alpine
+    container_name: personal_ai_twin_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-personal_ai_twin}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis 7 In-Memory Cache, Distributed Lock & Celery Broker
+  redis:
+    image: redis:7-alpine
+    container_name: personal_ai_twin_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend API Server
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: personal_ai_twin_backend
+    restart: always
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/personal_ai_twin
+      - DATABASE_SYNC_URL=postgresql+psycopg2://postgres:postgres@db:5432/personal_ai_twin
+      - REDIS_URL=redis://redis:6379/0
+      - TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY:-D7h2k9S8z1M3v0B2L5p8W4x1Q7r6E3t8Y9u4I1o0P2s=}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/v1/auth/google/callback}
+      - OWNER_NAME=${OWNER_NAME:-Abhishek}
+      - OWNER_EMAIL=${OWNER_EMAIL:-abhishekkumarsaw414@gmail.com}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+
+  # Celery Background Worker for Data Ingestion
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: personal_ai_twin_celery_worker
+    restart: always
+    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/personal_ai_twin
+      - DATABASE_SYNC_URL=postgresql+psycopg2://postgres:postgres@db:5432/personal_ai_twin
+      - REDIS_URL=redis://redis:6379/0
+      - TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY:-D7h2k9S8z1M3v0B2L5p8W4x1Q7r6E3t8Y9u4I1o0P2s=}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - OWNER_NAME=${OWNER_NAME:-Abhishek}
+      - OWNER_EMAIL=${OWNER_EMAIL:-abhishekkumarsaw414@gmail.com}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Celery Beat Scheduler for Periodic Incremental Sync (Every 15 mins)
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: personal_ai_twin_celery_beat
+    restart: always
+    command: celery -A app.workers.celery_app.celery_app beat --loglevel=info
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
