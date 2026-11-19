@@ -84,10 +84,10 @@ class EmailIngestionService:
                         page_token=page_token,
                     )
                     fetched_ids.extend(ids)
-                    if not page_token or len(fetched_ids) >= 500:
+                    if not page_token or len(fetched_ids) >= 50:
                         break
 
-                msg_ids_to_fetch = fetched_ids
+                msg_ids_to_fetch = fetched_ids[:50]
                 # Get current profile history ID
                 try:
                     profile = gmail_client.get_profile()
@@ -123,6 +123,9 @@ class EmailIngestionService:
                         )
                         session.add(email_record)
                         total_synced += 1
+                        if total_synced % 5 == 0:
+                            await session.commit()
+                            logger.info(f"Ingested {total_synced} emails so far...")
 
                 except Exception as msg_err:
                     logger.error(f"Error ingesting email {msg_id}: {msg_err}")

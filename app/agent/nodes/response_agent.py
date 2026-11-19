@@ -31,12 +31,16 @@ CALLER QUESTION:
 
 CONCISE SPOKEN RESPONSE:"""
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-        )
-        if response and response.text:
-            return response.text.strip()
+        for model_name in ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"]:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                if response and response.text:
+                    return response.text.strip()
+            except Exception as model_err:
+                continue
     except Exception as e:
         logger.warning(f"Gemini API call failed, falling back to deterministic response: {e}")
     return ""

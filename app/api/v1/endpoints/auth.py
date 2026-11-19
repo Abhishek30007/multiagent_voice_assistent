@@ -1,5 +1,5 @@
 import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
@@ -57,6 +57,7 @@ async def google_auth_callback(
     code: str = Query(...),
     state: str | None = Query(None),
     error: str | None = Query(None),
+    background_tasks: BackgroundTasks = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Handle callback from Google OAuth redirect with authorization code."""
@@ -71,11 +72,15 @@ async def google_auth_callback(
 
         logger.info(f"Successfully saved Google OAuth credentials for user: {user.email}")
 
-        return {
-            "success": True,
-            "message": "Google account connected successfully! Gmail and Google Calendar access granted.",
-            "owner": user.email,
-        }
+        # Trigger automatic initial sync for emails & calendar
+        if background_tasks:
+            from app.api.v1.endpoints.sync import _run_background_sync_all
+            background_tasks.add_task(_run_background_sync_all, user.id, True)
+
+        return RedirectResponse(
+            url="http://localhost:3000/settings?connected=true",
+            status_code=status.HTTP_302_FOUND,
+        )
     except Exception as e:
         logger.error(f"Failed to exchange OAuth token: {e}")
         raise HTTPException(

@@ -34,6 +34,7 @@ class GoogleOAuthManager:
             state=state,
         )
         flow.redirect_uri = settings.GOOGLE_REDIRECT_URI
+        flow.autogenerate_code_verifier = False
         return flow
 
     @classmethod
@@ -139,7 +140,12 @@ class GoogleOAuthManager:
         )
 
         # Check if token is expired and refresh if necessary
-        if credentials.expired or (token_record.expires_at and token_record.expires_at <= datetime.datetime.now(datetime.timezone.utc)):
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        expires_at = token_record.expires_at
+        if expires_at and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=datetime.timezone.utc)
+
+        if credentials.expired or (expires_at and expires_at <= now_utc):
             if refresh_token:
                 try:
                     logger.info(f"Refreshing expired Google OAuth access token for user {user_id}")

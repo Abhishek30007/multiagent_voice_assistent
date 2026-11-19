@@ -3,6 +3,7 @@ from typing import Dict, Any
 from langchain_core.runnables import RunnableConfig
 from app.agent.state import AgentState
 from app.agent.tools.retrieval_tools import search_gmail_records
+from app.core.database import AsyncSessionLocal
 from app.core.logger import logger
 
 
@@ -15,10 +16,6 @@ async def gmail_agent_node(state: AgentState, config: RunnableConfig) -> Dict[st
     configurable = config.get("configurable", {})
     session = configurable.get("db_session")
     user_id = configurable.get("user_id", 1)
-
-    if not session:
-        audit_trail.append("Gmail Agent: DB session not configured, skipping.")
-        return {"audit_trail": audit_trail}
 
     # Extract search terms (ignore common stop words)
     stop_words = {"is", "abhishek", "available", "at", "for", "the", "a", "an", "what", "where", "when", "does", "have", "his", "he"}
@@ -34,14 +31,22 @@ async def gmail_agent_node(state: AgentState, config: RunnableConfig) -> Dict[st
     elif any(w in query.lower() for w in ["job", "offer", "recruiter"]):
         category = "Career"
 
-    try:
-        records = await search_gmail_records(
-            session=session,
+    async def _query_with_session(s):
+        return await search_gmail_records(
+            session=s,
             user_id=user_id,
             query_terms=search_terms,
             category=category,
             limit=5,
         )
+
+    try:
+        if session:
+            records = await _query_with_session(session)
+        else:
+            async with AsyncSessionLocal() as fallback_s:
+                records = await _query_with_session(fallback_s)
+
         retrieved_evidence.extend(records)
         audit_trail.append(f"Gmail Agent: Retrieved {len(records)} relevant email message(s).")
     except Exception as e:
